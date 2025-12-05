@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>RAG 攻击测试面板</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0 auto; max-width: 960px; padding: 24px; background: #f7f7fb; color: #1f2933; }
+    h1 { margin-bottom: 8px; }
+    .card { background: #fff; padding: 16px; margin: 12px 0; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+    label { display: block; font-weight: 600; margin: 8px 0 4px; }
+    input[type="text"], input[type="number"], textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccd3dd; box-sizing: border-box; }
+    textarea { min-height: 160px; resize: vertical; }
+    button { background: #2563eb; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+    .alert { padding: 10px 12px; border-radius: 6px; margin: 8px 0; }
+    .warn { background: #fff7d6; border: 1px solid #f3d652; }
+    .error { background: #ffe1e1; border: 1px solid #f28b82; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f0f4ff; }
+    a { color: #2563eb; text-decoration: none; }
+    .answer { white-space: pre-wrap; word-break: break-word; background: #ffffff; color: #111; padding: 8px; border-radius: 6px; border: 1px solid #e5e7eb; }
+    .leak-row { color: #d22; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>RAG 攻击测试面板</h1>
+  <p><a href="/">返回首页</a></p>
+
+  {% if api_missing %}
+    <div class="alert warn">未检测到 OPENROUTER_API_KEY，需设置后才能调用模型。</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert error">{{ error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <form method="post" action="/attack">
+      <label>模型名称</label>
+      <input type="text" name="model_name" value="{{ model_name }}">
+      <label>检索 Top-K</label>
+      <input type="number" name="top_k" min="1" max="8" value="{{ top_k }}">
+      <label>Canary 标记</label>
+      <input type="text" name="canary" value="{{ canary }}">
+      <label>选择预置攻击库</label>
+      <select name="preset">
+        {% for key in preset_keys %}
+          <option value="{{ key }}" {% if preset == key %}selected{% endif %}>{{ key }}</option>
+        {% endfor %}
+      </select>
+      <p style="font-size: 12px; color: #555;">选择预置库将覆盖下方提示输入框；custom 为自定义。</p>
+      <label>
+        <input type="checkbox" name="unsafe" value="1">
+        测试模式（不阻断泄露，仅用于红队验证）
+      </label>
+      <label>攻击提示（一行一条）</label>
+      <textarea name="prompts">{{ prompts }}</textarea>
+      <div style="margin-top:10px;">
+        <button type="submit">执行攻击</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>公开攻击样本库（参考）</h2>
+    <ul>
+      <li>Awesome Jailbreak Prompts：常见越权/JB 句式合集</li>
+      <li>AdvBench / PromptBench / AdvPromptBench：研究基准，含越权与隐私提取提示</li>
+      <li>Prompt Injection Benchmark (PIB) / InstructionHijacking：专注“忽略前文/打印上下文”等注入模式</li>
+      <li>garak：安全测试工具，自带多族攻击模板（jailbreak/越权/注入）</li>
+      <li>guardrails/Nemo/ProtectAI 等安全工具附带的红队列表，可提取间接注入、数据外泄句式</li>
+    </ul>
+    <p style="font-size: 12px; color: #555;">
+      注：实际使用请检查开源许可与内容合规性，并结合领域词汇做同义改写/多语言扩充。
+    </p>
+  </div>
+
+  {% if results and results|length > 0 %}
+    <div class="card">
+      <h2>结果</h2>
+      {% if summary %}
+        <p>
+          攻击总数: {{ summary.total }} |
+          判定为 leak: {{ summary.leak }} |
+          判定为 refuse: {{ summary.refuse }} |
+          判定为 ok: {{ summary.ok }} |
+          异常: {{ summary.error }}
+        </p>
+      {% endif %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>风险</th>
+            <th>判定</th>
+            <th>Canary</th>
+            <th>命中文档</th>
+            <th>回答长度</th>
+            <th>提示</th>
+            <th>回答预览</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in results %}
+            <tr class="{% if r.verdict == 'leak' %}leak-row{% endif %}">
+              <td>{{ r.idx }}</td>
+              <td>{{ r.risk }}</td>
+              <td>{{ r.verdict }}</td>
+              <td>{{ '是' if r.leaked else '否' }}</td>
+              <td>{{ r.src_cnt }}</td>
+              <td>{{ r.answer_len }}</td>
+              <td>{{ r.prompt }}</td>
+              <td><div class="answer">{{ r.answer }}</div></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,3 @@
+This is a sample knowledge base document.
+It exists so the RAG demo has something to retrieve on first run.
+Feel free to replace this file or add more .txt files under ./data.

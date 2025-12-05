@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>LangChain RAG Guarded UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0 auto; max-width: 960px; padding: 24px; background: #f7f7fb; color: #1f2933; }
+    h1 { margin-bottom: 8px; }
+    h2 { margin-top: 24px; }
+    .card { background: #fff; padding: 16px; margin: 12px 0; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+    label { display: block; font-weight: 600; margin: 8px 0 4px; }
+    input[type="text"], input[type="number"], textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccd3dd; box-sizing: border-box; }
+    textarea { min-height: 110px; resize: vertical; }
+    button { background: #2563eb; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+    button.secondary { background: #e2e8f0; color: #111; }
+    .alert { padding: 10px 12px; border-radius: 6px; margin: 8px 0; }
+    .warn { background: #fff7d6; border: 1px solid #f3d652; }
+    .error { background: #ffe1e1; border: 1px solid #f28b82; }
+    .success { background: #e6ffed; border: 1px solid #34c759; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    pre { background: #0b1021; color: #e5e7eb; padding: 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+    ul { padding-left: 20px; }
+    .inline-form { display: inline; }
+  </style>
+</head>
+<body>
+  <h1>LangChain RAG Guarded UI</h1>
+  <p>基于 FastAPI，无 Streamlit。支持上传/删除知识库、风险守卫、canary 检测、会话预算。</p>
+
+  {% if api_missing %}
+    <div class="alert warn">未检测到 OPENROUTER_API_KEY，需设置后才能调用模型。</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert error">{{ error }}</div>
+  {% endif %}
+  {% if info %}
+    <div class="alert success">{{ info }}</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>提问与配置</h2>
+    <form method="post" action="/ask">
+      <div class="grid">
+        <div>
+          <label>模型名称</label>
+          <input type="text" name="model_name" value="{{ model_name or default_model }}">
+        </div>
+        <div>
+          <label>检索 Top-K</label>
+          <input type="number" name="top_k" min="1" max="8" value="{{ top_k or 4 }}">
+        </div>
+       <div>
+         <label>Canary 标记</label>
+         <input type="text" name="canary" value="{{ canary or 'CANARY' }}">
+       </div>
+      </div>
+      <label style="margin-top:12px;">问题</label>
+      <textarea name="question" placeholder="例如：这份知识库的核心内容是什么？">{{ question or '' }}</textarea>
+      <div style="margin:10px 0;">
+        <span>风险评分: {{ risk if risk is not none else '未评估' }}</span>
+      </div>
+      <button type="submit">提交问题</button>
+    </form>
+  </div>
+
+  {% if answer %}
+    <div class="card">
+      <h2>回答</h2>
+      <p>{{ answer }}</p>
+      <p>判定: {{ verdict }} | Canary 泄露: {{ '是' if leaked else '否' }} | 预算: {{ budget_used }}/{{ budget_limit }}</p>
+      <h3>检索来源</h3>
+      <ul>
+        {% for s in sources %}
+          <li><strong>{{ s.source }}</strong> (chunk {{ s.chunk }})<pre>{{ s.content }}</pre></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>知识库管理</h2>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <label>上传 .txt 文件</label>
+      <input type="file" name="files" multiple accept=".txt">
+      <div style="margin-top:8px;">
+        <button type="submit">上传</button>
+      </div>
+    </form>
+
+    <h3 style="margin-top:16px;">已有文件</h3>
+    <ul>
+      {% if files %}
+        {% for f in files %}
+          <li>
+            {{ f }}
+            <form class="inline-form" action="/delete" method="post" style="margin-left:8px;">
+              <input type="hidden" name="filename" value="{{ f }}">
+              <button type="submit" class="secondary">删除</button>
+            </form>
+          </li>
+        {% endfor %}
+      {% else %}
+        <li>当前无文件，请上传。</li>
+      {% endif %}
+    </ul>
+    <form action="/reload" method="post" style="margin-top:8px;">
+      <button type="submit" class="secondary">重新加载索引</button>
+    </form>
+  </div>
+</body>
+</html>
