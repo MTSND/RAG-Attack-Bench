@@ -30,6 +30,10 @@ OPENROUTER_API_KEY=你的key .venv/bin/uvicorn server:app --host 0.0.0.0 --port 
 - “测试模式（unsafe）” 仅用于标记用途，当前版本没有本地防护，模型会直接按提示输出检索内容。
 - 提交后显示报表（风险分、判定、命中文档数、回答长度、回答预览）。
 
+## 自带攻击样本集
+- 智慧图书馆攻击样本：`attack_samples/library/attacks.txt`（15条，含借阅记录/接口密钥/日志导出等场景提示）
+- 可复制其中提示到 `/attack` 页面（或 CLI `--attack` 参数）使用，也可按需扩充。
+
 ## 预置攻击库来源参考
 - Awesome Jailbreak Prompts: https://github.com/0xk1h0/awesome-jailbreak-prompts
 - AdvBench / PromptBench / AdvPromptBench: https://github.com/zh-plus/advbench, https://github.com/microsoft/PromptBench
